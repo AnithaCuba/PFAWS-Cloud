@@ -7,17 +7,17 @@ variable "aws_region" {
 variable "input_bucket_name" {
   description = "Nombre del bucket S3 de entrada"
   type        = string
-  default     = "input-bucket-covid-test"
+  
 }
 
 variable "output_bucket_name" {
   description = "Nombre del bucket S3 de salida"
   type        = string
-  default     = "output-bucket-covid-test"
+
 }
 
 variable "lambda_function_name" {
   description = "Nombre de la función Lambda"
   type        = string
-  default     = "covid_test01"
+
 }
