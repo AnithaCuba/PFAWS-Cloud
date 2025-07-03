@@ -1,0 +1,92 @@
+name: Infraestructura AWS con Terraform y carga de CSV
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**.tf'
+      - 'lambda/**'
+      - '.github/workflows/**'
+      - 'DataCovid.csv'
+
+jobs:
+  deploy:
+    name: Desplegar Infraestructura y Lambda
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v3
+
+      - name: Configurar credenciales AWS
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Empaquetar código Lambda
+        run: |
+          cd lambda
+          zip -r ../lambda_newtest.zip .
+
+      - name: Inicializar Terraform
+        working-directory: terraform
+        run: terraform init
+
+      - name: Validar Terraform
+        working-directory: terraform
+        run: terraform validate
+
+      - name: Plan Terraform
+        working-directory: terraform
+        run: terraform plan
+
+      - name: Aplicar Terraform
+        working-directory: terraform
+        run: terraform apply -auto-approve
+
+  upload-csv:
+    name: Subir archivo CSV a S3
+    needs: deploy   # Espera que termine el job anterior
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      INPUT_BUCKET_NAME: input-bucket-covid-test  # <- CAMBIA ESTO si usas otro nombre
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v3
+
+      - name: Configurar credenciales AWS
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Verificar si el bucket S3 existe antes de subir el CSV
+        run: |
+            echo "Verificando si el bucket $INPUT_BUCKET_NAME existe en $AWS_REGION..."
+
+            if aws s3api head-bucket --bucket "$INPUT_BUCKET_NAME" 2>/dev/null; then
+              echo "Bucket '$INPUT_BUCKET_NAME' encontrado. Continuando con la carga del archivo..."
+            else
+              echo "El bucket '$INPUT_BUCKET_NAME' no existe. Carga denegada del CSV."
+              exit 1
+            fi
+
+      - name: Validar que DataCovid.csv es un archivo CSV válido
+        run: |
+            [[ ! -f DataCovid.csv ]] && echo " No se encontró DataCovid.csv." && exit 1
+            [[ "$(basename DataCovid.csv)" == *.txt ]] && echo "No se permite subir archivos .txt." && exit 1
+            file DataCovid.csv | grep -iq 'text' || (echo "El archivo no parece ser texto plano (CSV)." && exit 1)
+
+      - name: Subir archivo CSV al bucket de entrada
+        run: |
+          aws s3 cp DataCovid.csv s3://$INPUT_BUCKET_NAME/DataCovid.csv
