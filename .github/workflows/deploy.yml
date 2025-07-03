@@ -33,6 +33,11 @@ jobs:
         run: |
           cd lambda
           zip -r ../lambda_newtest.zip .
+      
+      - name: Setup Terraform CLI
+        uses: hashicorp/setup-terraform@v2
+        with:
+              terraform_version: 1.12.1
 
       - name: Inicializar Terraform
         working-directory: terraform
