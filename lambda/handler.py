@@ -2,6 +2,8 @@ import boto3
 import csv
 import json
 import os
+from datetime import datetime
+
 
 s3 = boto3.client('s3')
 
@@ -21,10 +23,12 @@ def lambda_handler(event, context):
     cleaned_data = []
 
     for row in reader:
-        cleaned_row = aplicar_reglas(row)  # <- función personalizada
-        cleaned_data.append(cleaned_row)
+        cleaned_row = aplicar_reglas(row)
+        if cleaned_row is not None:
+            cleaned_data.append(cleaned_row)# <- función personalizada
+       
 
-    output_bucket = os.environ.get("OUTPUT_BUCKET_NAME")
+    output_bucket = os.environ.get("OUTPUT_BUCKET")
     output_key = key.replace(".csv", ".json")
 
     s3.put_object(

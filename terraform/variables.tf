@@ -13,6 +13,7 @@ variable "input_bucket_name" {
 variable "output_bucket_name" {
   description = "Nombre del bucket S3 de salida"
   type        = string
+  default     = "output-bucket-covid-test"
 
 }
 
